@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS 이동 거리 측정</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #distance {
+            font-size: 24px;
+            color: #333;
+        }
+        #map {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RunningRangeFinder</h1>
+    <p>기기의 위치를 추적하여 이동 거리를 계산하고 경로를 지도에 표시합니다.</p>
+    <p id="status">위치 정보를 가져오는 중...</p>
+    <p id="distance">이동 거리: 0.00 km</p>
+    <div id="map"></div>
+
+    <script>
+        let map; // 지도 객체
+        let path = []; // 경로를 저장할 배열
+        let polyline; // 지도에 표시할 Polyline 객체
+        let totalDistance = 0; // 총 이동 거리
+        let previousPosition = null; // 이전 위치 저장
+
+        function initMap() {
+            // 초기 지도 설정
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 35.8444499, lng: 128.6406387 }, // 초기값 좌표(경북고)
+                zoom: 15,
+            });
+
+            // Polyline 초기화
+            polyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 2,
+            });
+            polyline.setMap(map);
+        }
+
+        // 브라우저의 위치 추적 기능 활성화
+        if ('geolocation' in navigator) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const currentPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    };
+
+                    // 이전 위치가 있다면 거리 계산
+                    if (previousPosition) {
+                        const distance = calculateDistance(previousPosition, currentPosition);
+                        totalDistance += distance;
+                        document.getElementById('distance').innerText = 
+                            `이동 거리: ${totalDistance.toFixed(2)} km`;
+                    }
+
+                    // 경로에 현재 위치 추가
+                    path.push(currentPosition);
+                    polyline.setPath(path);
+
+                    // 지도 중심을 현재 위치로 이동
+                    map.setCenter(currentPosition);
+
+                    // 현재 위치를 이전 위치로 업데이트
+                    previousPosition = currentPosition;
+                    document.getElementById('status').innerText = `현재 위치: (${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)})`;
+                },
+                (error) => {
+                    console.error(error);
+                    document.getElementById('status').innerText = '위치 정보를 가져올 수 없습니다.';
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            document.getElementById('status').innerText = '이 브라우저는 위치 추적을 지원하지 않습니다.';
+        }
+
+        // 두 좌표 사이의 거리 계산 (Haversine 공식)
+        function calculateDistance(pos1, pos2) {
+            const R = 6371; // 지구 반지름 (km)
+            const dLat = toRad(pos2.lat - pos1.lat);
+            const dLon = toRad(pos2.lng - pos1.lng);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(pos1.lat)) * Math.cos(toRad(pos2.lat)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // 거리 (km)
+        }
+
+        // 각도를 라디안으로 변환
+        function toRad(value) {
+            return (value * Math.PI) / 180;
+        }
+    </script>
+
+    <!-- Google Maps JavaScript API 추가 -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCMm6FiU4E-qXxXxJsgoKErBbPxRiWlf38&callback=initMap" async defer></script>
+</body>
+</html>
